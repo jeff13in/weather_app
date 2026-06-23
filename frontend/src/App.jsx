@@ -1,6 +1,8 @@
 import { useState } from "react";
 
+import SavedSearches from "./components/SavedSearches";
 
+import './App.css'
 
  function App(){
     const [city, setCity] = useState('');
@@ -25,7 +27,7 @@ import { useState } from "react";
         try{
             const response =await fetch('http://localhost:3001/api/searches');
             const data = await response.json();
-            setSavedList(date);
+            setSavedList(data);
         } catch(err){
             console.log('could not load saved')
         }
@@ -149,7 +151,6 @@ import { useState } from "react";
             setEndDate('');
             loadSavedSearches();
 
-            // clear the message after 3 seconds
             setTimeout(function() {
                 setSaveMsg('');
             }, 3000);
@@ -185,7 +186,7 @@ import { useState } from "react";
                     </button>
                     <button
                         className={tab === 'saved' ? 'tab active' : 'tab'}
-                        onClick={() => setTab('saved')}
+                        onClick={() => { setTab('saved'); loadSavedSearches(); }}
                     >
                         Saved Searches ({savedList.length})
                     </button>
@@ -194,11 +195,9 @@ import { useState } from "react";
 
             <div className="content">
 
-                {/* SEARCH TAB */}
                 {tab === 'search' && (
                     <div>
 
-                        {/* search input */}
                         <div className="search-box">
                             <form onSubmit={handleSearch}>
                                 <input
@@ -219,12 +218,11 @@ import { useState } from "react";
                             <p className="loading">Loading weather data...</p>
                         )}
 
-                        {/* show error if something went wrong */}
                         {error && (
                             <div className="error">{error}</div>
                         )}
 
-                        {/* CURRENT WEATHER CARD */}
+                        
                         {weather && (
                             <div className="weather-card">
                                 <div className="weather-top">
