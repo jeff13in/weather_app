@@ -72,8 +72,8 @@ Go to [http://localhost:5173](http://localhost:5173) in your browser.
 weather_app/
 ├── backend/
 │   ├── server.js       # Express API
-│   ├── weather.db      # SQLite database (auto-created)
-│   └── .env            # API key (not committed)
+│   ├── weather.db      # SQLite database
+│   └── .env            # API key
 └── frontend/
     ├── src/
     │   ├── App.jsx
