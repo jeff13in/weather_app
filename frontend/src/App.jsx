@@ -1,27 +1,383 @@
 import { useState } from "react";
-import axios from 'axios'
+
+
+
  function App(){
     const [city, setCity] = useState('');
     const [weather, setWeather] = useState(null);
+    const [forecast, setForecast]       = useState([]);
+    const [loading, setLoading]         = useState(false);
+    const [error, setError]             = useState('');
 
-    const handleSearch = async (e) => {
+    const [startDate, setStartDate]     = useState('');
+    const [endDate, setEndDate]         = useState('');
+    const [saveMsg, setSaveMsg]         = useState('');
+    const [showSaveForm, setShowSaveForm] = useState(false);
+
+    const [tab, setTab]                 = useState('search');
+
+    const [savedList, setSavedList]     = useState([]);
+
+
+
+
+    async function loadSavedSearches() {
+        try{
+            const response =await fetch('http://localhost:3001/api/searches');
+            const data = await response.json();
+            setSavedList(date);
+        } catch(err){
+            console.log('could not load saved')
+        }
+        
+    }
+
+    async function handleSearch(e) {
         e.preventDefault();
-        const res = await axios.get(`http://localhost:3001/api/weather?city=${city}`);
-        console.log(res.data);
-        setWeather(res.data);
-    };
 
+        if(city.trim() === ''){
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        setWeather(null);
+        setForecast([]);
+        setShowSaveForm(false);
+        setSaveMsg('');
+
+        try{
+            const weatherUrl ='http://localhost:3001/api/weather?city=' + city;
+            const weatherResponse= await fetch(weatherUrl);
+            const weatherData =await weatherResponse.json();
+
+            // if the response is not ok, show the error message
+            if (!weatherResponse.ok) {
+                setError(weatherData.message);
+                setLoading(false);
+                return;
+            }
+
+            console.log('weather data:', weatherData);
+            setWeather(weatherData);
+
+
+        }catch (err) {
+            setError('Could not connect to the server');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const forecastUrl= 'http://localhost:3001/api/forecast?city=' + city;
+            const forecastResponse= await fetch(forecastUrl);
+            const forecastData =await forecastResponse.json();
+
+            // the api gives us data every 3 hours so we need to filter it down to one per day
+            const dailyMap= {};
+
+            for (let i = 0; i < forecastData.list.length; i++) {
+                const item = forecastData.list[i];
+                const date = item.dt_txt.split(' ')[0];
+                const time = item.dt_txt.split(' ')[1];
+
+                // add the first entry for each date
+                if (!dailyMap[date]) {
+                    dailyMap[date] = item;
+                }
+
+                // if there is a 12pm reading, use that 
+                if (time === '12:00:00') {
+                    dailyMap[date] = item;
+                }
+            }
+
+            // get the dates in order, take the next 5
+            const allDates = Object.keys(dailyMap).sort();
+            const next5Days = [];
+
+            for (let i = 1; i <= 5; i++) {
+                if (allDates[i]) {
+                    next5Days.push(dailyMap[allDates[i]]);
+                }
+            }
+
+            setForecast(next5Days);
+
+        } catch (err) {
+            console.log('forecast error' + err.message);
+  
+        }
+
+        setLoading(false);
+        
+    }
+    async function handleSave() {
+        if (!weather) return;
+
+        // validate the dates
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end   = new Date(endDate);
+            if (start > end) {
+                setSaveMsg('Error: start date cannot be after end date');
+                return;
+            }
+        }
+
+        try {
+            const response = await fetch('http://localhost:3001/api/searches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    city:       weather.name,
+                    start_date: startDate || null,
+                    end_date:   endDate   || null
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                setSaveMsg('Error: ' + data.message);
+                return;
+            }
+
+            setSaveMsg('Saved successfully!');
+            setShowSaveForm(false);
+            setStartDate('');
+            setEndDate('');
+            loadSavedSearches();
+
+            // clear the message after 3 seconds
+            setTimeout(function() {
+                setSaveMsg('');
+            }, 3000);
+
+        } catch (err) {
+            setSaveMsg('Error: could not save. Try again.');
+            console.log('save error: ' + err.message);
+        }
+    }
+
+    function handleExport(format) {
+        window.open('http://localhost:3001/api/export/' + format, '_blank');
+    }
+    function formatForecastDay(dtTxt) {
+        const date = new Date(dtTxt);
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
 
     return (
-        <div>
-            <form onSubmit={handleSearch}>
-                <input value={city} onChange={(e) => setCity(e.target.value)} />
-                <button type="submit">Search</button>
+        <div className="app">
 
-            </form>
-            {weather && <p>{weather.name}: {Math.round(weather.main.temp)}F</p>}
+            
+            <div className="header">
+                <h1>WeatherNow</h1>
+                <p>Real time weather for any location</p>
+
+                <div className="tabs">
+                    <button
+                        className={tab === 'search' ? 'tab active' : 'tab'}
+                        onClick={() => setTab('search')}
+                    >
+                        Search Weather
+                    </button>
+                    <button
+                        className={tab === 'saved' ? 'tab active' : 'tab'}
+                        onClick={() => setTab('saved')}
+                    >
+                        Saved Searches ({savedList.length})
+                    </button>
+                </div>
+            </div>
+
+            <div className="content">
+
+                {/* SEARCH TAB */}
+                {tab === 'search' && (
+                    <div>
+
+                        {/* search input */}
+                        <div className="search-box">
+                            <form onSubmit={handleSearch}>
+                                <input
+                                    type="text"
+                                    value={city}
+                                    onChange={(e) => setCity(e.target.value)}
+                                    placeholder="Enter city, zip code, or city and country (e.g. Toronto, Niagara Falls )"
+                                    className="search-input"
+                                />
+                                <button type="submit" className="btn-blue">Search</button>
+                            </form>
+
+                            <p className="hint">Try: London, Toronto, or Tokyo, JP</p>
+                        </div>
+
+                       
+                        {loading && (
+                            <p className="loading">Loading weather data...</p>
+                        )}
+
+                        {/* show error if something went wrong */}
+                        {error && (
+                            <div className="error">{error}</div>
+                        )}
+
+                        {/* CURRENT WEATHER CARD */}
+                        {weather && (
+                            <div className="weather-card">
+                                <div className="weather-top">
+                                    <div>
+                                        <h2>{weather.name}, {weather.sys.country}</h2>
+                                        <p className="description">{weather.weather[0].description}</p>
+                                        <p className="temp">{Math.round(weather.main.temp)}°F</p>
+                                        <p className="feels-like">Feels like {Math.round(weather.main.feels_like)}°F</p>
+                                        <p className="high-low">
+                                            H: {Math.round(weather.main.temp_max)}°F &nbsp;|&nbsp; L: {Math.round(weather.main.temp_min)}°F
+                                        </p>
+                                    </div>
+                                    <img
+                                        src={'https://openweathermap.org/img/wn/' + weather.weather[0].icon + '@2x.png'}
+                                        alt={weather.weather[0].description}
+                                        className="weather-icon"
+                                    />
+                                </div>
+
+                                {/* extra weather info */}
+                                <div className="details-grid">
+                                    <div className="detail">
+                                        <span className="label">Humidity</span>
+                                        <span className="value">{weather.main.humidity}%</span>
+                                    </div>
+                                    <div className="detail">
+                                        <span className="label">Wind Speed</span>
+                                        <span className="value">{Math.round(weather.wind.speed)} mph</span>
+                                    </div>
+                                    <div className="detail">
+                                        <span className="label">Pressure</span>
+                                        <span className="value">{weather.main.pressure} hPa</span>
+                                    </div>
+                                    <div className="detail">
+                                        <span className="label">Visibility</span>
+                                        <span className="value">
+                                            {weather.visibility ? (weather.visibility / 1000).toFixed(1) + ' km' : 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="detail">
+                                        <span className="label">Cloud Cover</span>
+                                        <span className="value">{weather.clouds.all}%</span>
+                                    </div>
+                                    <div className="detail">
+                                        <span className="label">Wind Dir.</span>
+                                        <span className="value">{weather.wind.deg}°</span>
+                                    </div>
+                                </div>
+
+                                {/* save this search to the database */}
+                                <div className="save-section">
+                                    <button
+                                        className="btn-orange"
+                                        onClick={() => setShowSaveForm(!showSaveForm)}
+                                    >
+                                        {showSaveForm ? 'Cancel' : 'Save This Search'}
+                                    </button>
+
+                                    {showSaveForm && (
+                                        <div style={{ marginTop: '14px' }}>
+                                            <p style={{ marginBottom: '10px', color: '#555' }}>
+                                                Optionally add a date range for this search:
+                                            </p>
+                                            <div className="date-row">
+                                                <label>
+                                                    Start date:
+                                                    <input
+                                                        type="date"
+                                                        value={startDate}
+                                                        onChange={(e) => setStartDate(e.target.value)}
+                                                    />
+                                                </label>
+                                                <label>
+                                                    End date:
+                                                    <input
+                                                        type="date"
+                                                        value={endDate}
+                                                        onChange={(e) => setEndDate(e.target.value)}
+                                                    />
+                                                </label>
+                                                <button onClick={handleSave} className="btn-blue">
+                                                    Save to Database
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {saveMsg && (
+                                        <p className={saveMsg.startsWith('Error') ? 'save-error' : 'save-ok'}>
+                                            {saveMsg}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* 5 DAY FORECAST */}
+                        {forecast.length > 0 && (
+                            <div className="forecast-box">
+                                <h3>5-Day Forecast</h3>
+                                <div className="forecast-row">
+                                    {forecast.map((day, i) => (
+                                        <div key={i} className="forecast-card">
+                                            <p className="forecast-day">{formatForecastDay(day.dt_txt)}</p>
+                                            <img
+                                                src={'https://openweathermap.org/img/wn/' + day.weather[0].icon + '@2x.png'}
+                                                alt={day.weather[0].description}
+                                            />
+                                            <p className="forecast-desc">{day.weather[0].description}</p>
+                                            <p className="forecast-temp">H: {Math.round(day.main.temp_max)}°F</p>
+                                            <p className="forecast-temp low">L: {Math.round(day.main.temp_min)}°F</p>
+                                            <p className="forecast-extra">Humidity: {day.main.humidity}%</p>
+                                            <p className="forecast-extra">Wind: {Math.round(day.wind.speed)} mph</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                    </div>
+                )}
+
+               
+                {tab === 'saved' && (
+                    <div>
+
+                        {/* export buttons */}
+                        <div className="export-box">
+                            <p>Download all saved searches  </p>
+                            <button className="export-btn" style={{ background: '#e67e22' }} onClick={() => handleExport('json')}>JSON</button>
+                            <button className="export-btn" style={{ background: '#27ae60' }} onClick={() => handleExport('csv')}>CSV</button>
+                            <button className="export-btn" style={{ background: '#8e44ad' }} onClick={() => handleExport('xml')}>XML</button>
+                            <button className="export-btn" style={{ background: '#2980b9' }} onClick={() => handleExport('markdown')}>Markdown</button>
+                        </div>
+
+                        <SavedSearches
+                            searches={savedList}
+                            onRefresh={loadSavedSearches}
+                        />
+                    </div>
+                )}
+
+            </div>
+
+                
+
+
         </div>
-    )
+    );
+
+
+
+
 
  }
 
