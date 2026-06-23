@@ -23,7 +23,7 @@ A full-stack weather app built with React and Node.js. Search current weather an
 ### Prerequisites
 
 - Node.js v18+
-- An OpenWeatherMap API key — sign up free at [openweathermap.org](https://openweathermap.org)
+- An OpenWeatherMap API key sign up free at [openweathermap.org](https://openweathermap.org)
 
 ### 1. Clone the repo
 
