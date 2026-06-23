@@ -68,7 +68,7 @@ app.get('/api/weather', async(req, res)=> {
     try{
         let url = '';
         if (lat && lon){
-            url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API}&units=imperial`;
+            url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API}&units=imperial`;
         } else {
             url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${API}&units=imperial`;
         }
@@ -81,6 +81,26 @@ app.get('/api/weather', async(req, res)=> {
             res.status(404).json({message: 'City not found'});
         } else {
             res.status(500).json({message: 'something wrong'});
+        }
+    }
+});
+
+app.get('/api/forecast', async (req, res) => {
+    const { city, lat, lon } = req.query;
+    try {
+        let url = '';
+        if (lat && lon) {
+            url = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API}&units=imperial`;
+        } else {
+            url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${API}&units=imperial`;
+        }
+        const data = await httpGet(url);
+        res.json(data);
+    } catch (err) {
+        if (err.statusCode === 404) {
+            res.status(404).json({ message: 'City not found' });
+        } else {
+            res.status(500).json({ message: 'something wrong' });
         }
     }
 });
@@ -223,7 +243,7 @@ app.put('/api/searches/:id', async (req, res)=>{
 //delete
 app.delete('/api/searches/:id', (req,res)=>{
     const id = req.params.id;
-    db.run('DELETE FROM searches WHERE id=?,'[id],function(err){
+    db.run('DELETE FROM searches WHERE id=?', [id], function(err){
         if(err){
             console.log('db error'+err.message);
             res.status(500).json({message:'error deleting'});
