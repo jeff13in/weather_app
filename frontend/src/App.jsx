@@ -114,6 +114,77 @@ import './App.css'
         setLoading(false);
         
     }
+
+    function handleGetLocation() {
+        if (!navigator.geolocation) {
+            setError('Geolocation is not supported by your browser.');
+            return;
+        }
+
+        setLoading(true);
+        setError('');
+        setWeather(null);
+        setForecast([]);
+
+        navigator.geolocation.getCurrentPosition(
+            async function(position) {
+                const lat = position.coords.latitude;
+                const lon = position.coords.longitude;
+
+                console.log('got coordinates: ' + lat + ', ' + lon);
+
+                try {
+                    // get weather using coordinates
+                    const weatherUrl = 'http://localhost:3001/api/weather?lat=' + lat + '&lon=' + lon;
+                    const weatherResponse = await fetch(weatherUrl);
+                    const weatherData = await weatherResponse.json();
+
+                    if (!weatherResponse.ok) {
+                        setError(weatherData.message || 'Could not get weather for your location.');
+                        setLoading(false);
+                        return;
+                    }
+
+                    setWeather(weatherData);
+                    setCity(weatherData.name);
+
+                    // get forecast using coordinates
+                    const forecastUrl = 'http://localhost:3001/api/forecast?lat=' + lat + '&lon=' + lon;
+                    const forecastResponse = await fetch(forecastUrl);
+                    const forecastData = await forecastResponse.json();
+
+                    const dailyMap = {};
+                    for (let i = 0; i < forecastData.list.length; i++) {
+                        const item = forecastData.list[i];
+                        const date = item.dt_txt.split(' ')[0];
+                        const time = item.dt_txt.split(' ')[1];
+                        if (!dailyMap[date]) dailyMap[date] = item;
+                        if (time === '12:00:00') dailyMap[date] = item;
+                    }
+
+                    const allDates = Object.keys(dailyMap).sort();
+                    const next5Days = [];
+                    for (let i = 1; i <= 5; i++) {
+                        if (allDates[i]) next5Days.push(dailyMap[allDates[i]]);
+                    }
+
+                    setForecast(next5Days);
+
+                } catch (err) {
+                    setError('Could not get weather for your location. Try again.');
+                    console.log('location weather error: ' + err.message);
+                }
+
+                setLoading(false);
+            },
+            function(err) {
+                // user denied location access
+                setError('Location access was denied. Please allow it in your browser and try again.');
+                setLoading(false);
+            }
+        );
+    }
+    
     async function handleSave() {
         if (!weather) return;
 
@@ -209,6 +280,10 @@ import './App.css'
                                 />
                                 <button type="submit" className="btn-blue">Search</button>
                             </form>
+
+                            <button onClick={handleGetLocation} className="btn-green" style={{ marginTop: '10px' }}>
+                                Use My Current Location
+                            </button>
 
                             <p className="hint">Try: London, Toronto, or Tokyo, JP</p>
                         </div>
