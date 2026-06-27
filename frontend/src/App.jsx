@@ -19,6 +19,7 @@ import './App.css'
     const [tab, setTab]                 = useState('search');
 
     const [savedList, setSavedList]     = useState([]);
+    const [showInfo, setShowInfo]       = useState(false);
 
 
 
@@ -244,9 +245,41 @@ import './App.css'
         <div className="app">
 
             
+            {showInfo && (
+                <div className="info-overlay" onClick={() => setShowInfo(false)}>
+                    <div className="info-modal" onClick={(e) => e.stopPropagation()}>
+                        <button className="info-close" onClick={() => setShowInfo(false)}>✕</button>
+                        <h2>About PM Accelerator</h2>
+                        <p>
+                            <strong>Product Manager Accelerator</strong> is a leading PM career accelerator
+                            that helps aspiring and experienced product managers break into top tech companies
+                            and grow their careers. Through mentorship, real-world projects, and a strong
+                            community, PMA equips candidates with the skills, portfolio, and network to land
+                            their dream PM roles at companies like Google, Meta, Amazon, and more.
+                        </p>
+                        <a
+                            href="https://www.linkedin.com/school/30760630/"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="info-link"
+                        >
+                            View PM Accelerator on LinkedIn
+                        </a>
+                    </div>
+                </div>
+            )}
+
             <div className="header">
-                <h1>WeatherNow</h1>
-                <p>Real time weather for any location</p>
+                <div className="header-top-row">
+                    <div>
+                        <h1>WeatherNow</h1>
+                        <p>Real time weather for any location</p>
+                        <p className="header-author">by Jeffin Sam</p>
+                    </div>
+                    <button className="info-btn" onClick={() => setShowInfo(true)} title="About PM Accelerator">
+                        &#9432;
+                    </button>
+                </div>
 
                 <div className="tabs">
                     <button
